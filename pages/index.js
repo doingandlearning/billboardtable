@@ -1,203 +1,197 @@
-import Head from 'next/head'
+import React from "react";
+import { readRemoteFile } from "react-papaparse";
+import { useTable, useSortBy, useBlockLayout, useFilters } from "react-table";
+import { FixedSizeList } from "react-window";
 
-const Home = () => (
-  <div className="container">
-    <Head>
-      <title>Create Next App</title>
-      <link rel="icon" href="/favicon.ico" />
-    </Head>
 
-    <main>
-      <h1 className="title">
-        Welcome to <a href="https://nextjs.org">Next.js!</a>
-      </h1>
+// Define a default UI for filtering
+function DefaultColumnFilter({
+  column: { filterValue, preFilteredRows, setFilter },
+}) {
+  const count = preFilteredRows.length
 
-      <p className="description">
-        Get started by editing <code>pages/index.js</code>
-      </p>
+  return (
+    <input
+      value={filterValue || ''}
+      onChange={e => {
+        setFilter(e.target.value || undefined) // Set undefined to remove the filter entirely
+      }}
+      placeholder={`Search ${count} records...`}
+    />
+  )
+}
 
-      <div className="grid">
-        <a href="https://nextjs.org/docs" className="card">
-          <h3>Documentation &rarr;</h3>
-          <p>Find in-depth information about Next.js features and API.</p>
-        </a>
 
-        <a href="https://nextjs.org/learn" className="card">
-          <h3>Learn &rarr;</h3>
-          <p>Learn about Next.js in an interactive course with quizzes!</p>
-        </a>
+export default function App() {
+  const [rawData, setRawData] = React.useState([]);
 
-        <a
-          href="https://github.com/zeit/next.js/tree/master/examples"
-          className="card"
+  React.useEffect(() => {
+    (async function fetchFunction() {
+      readRemoteFile("/data/billboard.csv", {
+        header: true,
+        complete: (raw) => setRawData(raw.data)
+      });
+    })();
+  }, []);
+
+
+  // acousticness: "0.843"
+  // albumArtUrl: "https://i.scdn.co/image/ab67616d00001e0221f4406a4e4ff4b99b99d506"
+  // albumName: "The Best Of The Decca Years"
+  // artistCredits: "Gordon Jenkins & The Weavers"
+  // danceability: "0.335"
+  // durationMs: "202240"
+  // energy: "0.255"
+  // instrumentalness: "0"
+  // key: "5"
+  // liveness: "0.26"
+  // loudness: "-10.561"
+  // mode: "1"
+  // primaryArtist: "Gordon Jenkins"
+  // rank: "1"
+  // speechiness: "0.0277"
+  // tempo: "141.158"
+  // timeSignature: "3"
+  // track: "Goodnight Irene"
+  // trackId: "1fhLgOJgIIZEsWWffk8ljs"
+  // trackPlayUrl: "https://open.spotify.com/track/1fhLgOJgIIZEsWWffk8ljs"
+  // trackPopularity: "15"
+  // trackPreviewUrl: ""
+  // valence: "0.556"
+  // year: "1950-01-01T07:00:00.000Z"
+  const columns = React.useMemo(
+    () => [
+      {
+        Header: 'Track',
+        accessor: 'track'
+      },
+      {
+        Header: 'Artist',
+        accessor: 'primaryArtist'
+      },
+      {
+        Header: 'Album Name',
+        accessor: 'albumName',
+      },
+      {
+        Header: "Year",
+        accessor: 'year'
+      },
+      {
+        Header: "Play",
+        accessor: 'trackPlayUrl',
+      }
+    ],
+    []
+  )
+
+  const data = React.useMemo(() => rawData, [rawData])
+
+  return (
+    <Table columns={columns} data={data} />
+  )
+}
+
+function Table({ columns, data }) {
+  const filterTypes = React.useMemo(
+    () => ({
+      // Or, override the default text filter to use
+      // "startWith"
+      text: (rows, id, filterValue) => {
+        return rows.filter(row => {
+          const rowValue = row.values[id]
+          return rowValue !== undefined
+            ? String(rowValue)
+              .toLowerCase()
+              .startsWith(String(filterValue).toLowerCase())
+            : true
+        })
+      },
+    }),
+    []
+  )
+  const defaultColumn = React.useMemo(
+    () => ({
+      width: 350,
+      Filter: DefaultColumnFilter
+    }),
+    []
+  )
+
+  const {
+    getTableProps,
+    getTableBodyProps,
+    headerGroups,
+    rows,
+    totalColumnsWidth,
+    prepareRow,
+  } = useTable(
+    {
+      columns,
+      data,
+      defaultColumn,
+      filterTypes
+    },
+    useBlockLayout,
+    useFilters,
+    useSortBy
+  )
+
+  const RenderRow = React.useCallback(
+    ({ index, style }) => {
+      const row = rows[index]
+      prepareRow(row)
+      return (
+        <div
+          {...row.getRowProps({
+            style,
+          })}
+          className=""
         >
-          <h3>Examples &rarr;</h3>
-          <p>Discover and deploy boilerplate example Next.js projects.</p>
-        </a>
+          {row.cells.map(cell => {
+            return (
+              <td {...cell.getCellProps()} className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                {cell.render('Cell')}
+              </td>
+            )
+          })}
+        </div>
+      )
+    },
+    [prepareRow, rows]
+  )
 
-        <a
-          href="https://zeit.co/new?filter=next.js&utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-          className="card"
-        >
-          <h3>Deploy &rarr;</h3>
-          <p>
-            Instantly deploy your Next.js site to a public URL with ZEIT Now.
-          </p>
-        </a>
+  // Render the UI for your table
+  return (
+    <div {...getTableProps()} className="m-8">
+      <div>
+        {headerGroups.map(headerGroup => (
+          <thead {...headerGroup.getHeaderGroupProps()} className=" bg-gray-50">
+            {headerGroup.headers.map(column => (
+              <th {...column.getHeaderProps(column.getSortByToggleProps())} cope="col" class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                {column.render('Header')}
+                <span> {column.isSorted
+                  ? column.isSortedDesc
+                    ? ' 🔽'
+                    : ' 🔼'
+                  : ''}</span>
+                <div>{column.canFilter ? column.render('Filter') : null}</div>
+              </th>
+            ))}
+          </thead>
+        ))}
       </div>
-    </main>
 
-    <footer>
-      <a
-        href="https://zeit.co?utm_source=create-next-app&utm_medium=default-template&utm_campaign=create-next-app"
-        target="_blank"
-        rel="noopener noreferrer"
-      >
-        Powered by <img src="/zeit.svg" alt="ZEIT Logo" />
-      </a>
-    </footer>
-
-    <style jsx>{`
-      .container {
-        min-height: 100vh;
-        padding: 0 0.5rem;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-      }
-
-      main {
-        padding: 5rem 0;
-        flex: 1;
-        display: flex;
-        flex-direction: column;
-        justify-content: center;
-        align-items: center;
-      }
-
-      footer {
-        width: 100%;
-        height: 100px;
-        border-top: 1px solid #eaeaea;
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-
-      footer img {
-        margin-left: 0.5rem;
-      }
-
-      footer a {
-        display: flex;
-        justify-content: center;
-        align-items: center;
-      }
-
-      a {
-        color: inherit;
-        text-decoration: none;
-      }
-
-      .title a {
-        color: #0070f3;
-        text-decoration: none;
-      }
-
-      .title a:hover,
-      .title a:focus,
-      .title a:active {
-        text-decoration: underline;
-      }
-
-      .title {
-        margin: 0;
-        line-height: 1.15;
-        font-size: 4rem;
-      }
-
-      .title,
-      .description {
-        text-align: center;
-      }
-
-      .description {
-        line-height: 1.5;
-        font-size: 1.5rem;
-      }
-
-      code {
-        background: #fafafa;
-        border-radius: 5px;
-        padding: 0.75rem;
-        font-size: 1.1rem;
-        font-family: Menlo, Monaco, Lucida Console, Liberation Mono,
-          DejaVu Sans Mono, Bitstream Vera Sans Mono, Courier New, monospace;
-      }
-
-      .grid {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        flex-wrap: wrap;
-
-        max-width: 800px;
-        margin-top: 3rem;
-      }
-
-      .card {
-        margin: 1rem;
-        flex-basis: 45%;
-        padding: 1.5rem;
-        text-align: left;
-        color: inherit;
-        text-decoration: none;
-        border: 1px solid #eaeaea;
-        border-radius: 10px;
-        transition: color 0.15s ease, border-color 0.15s ease;
-      }
-
-      .card:hover,
-      .card:focus,
-      .card:active {
-        color: #0070f3;
-        border-color: #0070f3;
-      }
-
-      .card h3 {
-        margin: 0 0 1rem 0;
-        font-size: 1.5rem;
-      }
-
-      .card p {
-        margin: 0;
-        font-size: 1.25rem;
-        line-height: 1.5;
-      }
-
-      @media (max-width: 600px) {
-        .grid {
-          width: 100%;
-          flex-direction: column;
-        }
-      }
-    `}</style>
-
-    <style jsx global>{`
-      html,
-      body {
-        padding: 0;
-        margin: 0;
-        font-family: -apple-system, BlinkMacSystemFont, Segoe UI, Roboto, Oxygen,
-          Ubuntu, Cantarell, Fira Sans, Droid Sans, Helvetica Neue, sans-serif;
-      }
-
-      * {
-        box-sizing: border-box;
-      }
-    `}</style>
-  </div>
-)
-
-export default Home
+      <div {...getTableBodyProps()}>
+        <FixedSizeList
+          height={800}
+          itemCount={rows.length}
+          itemSize={70}
+          width={totalColumnsWidth}
+        >
+          {RenderRow}
+        </FixedSizeList>
+      </div>
+    </div>
+  )
+}
